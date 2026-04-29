@@ -522,54 +522,75 @@ export default function App() {
               <span className="font-mono text-zinc-300">{previewSymbols.join(', ') || '—'}</span>
             </p>
 
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              {previewSymbols.map((sym) => (
-                <div key={sym} className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
-                  <div className="mb-2 font-mono text-sm font-semibold text-emerald-400">{sym}</div>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <Field
-                      label="Spot"
-                      value={marketBySymbol[sym]?.spot ?? ''}
-                      onChange={(v) =>
-                        setMarketBySymbol((m) => ({
-                          ...m,
-                          [sym]: { ...(m[sym] ?? defaultMarket()), spot: v },
-                        }))
-                      }
-                    />
-                    <Field
-                      label="Rate"
-                      value={marketBySymbol[sym]?.rate ?? ''}
-                      onChange={(v) =>
-                        setMarketBySymbol((m) => ({
-                          ...m,
-                          [sym]: { ...(m[sym] ?? defaultMarket()), rate: v },
-                        }))
-                      }
-                    />
-                    <Field
-                      label="Div yield"
-                      value={marketBySymbol[sym]?.divYield ?? ''}
-                      onChange={(v) =>
-                        setMarketBySymbol((m) => ({
-                          ...m,
-                          [sym]: { ...(m[sym] ?? defaultMarket()), divYield: v },
-                        }))
-                      }
-                    />
-                    <Field
-                      label="Baseline IV"
-                      value={marketBySymbol[sym]?.baselineIv ?? ''}
-                      onChange={(v) =>
-                        setMarketBySymbol((m) => ({
-                          ...m,
-                          [sym]: { ...(m[sym] ?? defaultMarket()), baselineIv: v },
-                        }))
-                      }
-                    />
-                  </div>
-                </div>
-              ))}
+            <div className="mt-4 overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-900/40">
+              <table className="w-full min-w-[720px] border-collapse text-left text-xs">
+                <thead className="border-b border-zinc-800 text-[11px] uppercase tracking-wide text-zinc-500">
+                  <tr>
+                    <th className="sticky left-0 top-0 z-20 bg-zinc-900 px-3 py-2 font-semibold">Symbol</th>
+                    <th className="sticky top-0 z-10 bg-zinc-900 px-3 py-2 font-semibold">Spot</th>
+                    <th className="sticky top-0 z-10 bg-zinc-900 px-3 py-2 font-semibold">Rate</th>
+                    <th className="sticky top-0 z-10 bg-zinc-900 px-3 py-2 font-semibold">Div yield</th>
+                    <th className="sticky top-0 z-10 bg-zinc-900 px-3 py-2 font-semibold">Baseline IV</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-800">
+                  {previewSymbols.map((sym) => (
+                    <tr key={sym}>
+                      <td className="sticky left-0 z-10 bg-zinc-900 px-3 py-2 font-mono text-sm font-semibold text-emerald-400">
+                        {sym}
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          className="w-24 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 font-mono text-zinc-100"
+                          value={marketBySymbol[sym]?.spot ?? ''}
+                          onChange={(e) =>
+                            setMarketBySymbol((m) => ({
+                              ...m,
+                              [sym]: { ...(m[sym] ?? defaultMarket()), spot: e.target.value },
+                            }))
+                          }
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          className="w-24 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 font-mono text-zinc-100"
+                          value={marketBySymbol[sym]?.rate ?? ''}
+                          onChange={(e) =>
+                            setMarketBySymbol((m) => ({
+                              ...m,
+                              [sym]: { ...(m[sym] ?? defaultMarket()), rate: e.target.value },
+                            }))
+                          }
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          className="w-24 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 font-mono text-zinc-100"
+                          value={marketBySymbol[sym]?.divYield ?? ''}
+                          onChange={(e) =>
+                            setMarketBySymbol((m) => ({
+                              ...m,
+                              [sym]: { ...(m[sym] ?? defaultMarket()), divYield: e.target.value },
+                            }))
+                          }
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          className="w-24 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 font-mono text-zinc-100"
+                          value={marketBySymbol[sym]?.baselineIv ?? ''}
+                          onChange={(e) =>
+                            setMarketBySymbol((m) => ({
+                              ...m,
+                              [sym]: { ...(m[sym] ?? defaultMarket()), baselineIv: e.target.value },
+                            }))
+                          }
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </Panel>
 
