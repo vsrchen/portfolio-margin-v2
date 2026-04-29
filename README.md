@@ -14,6 +14,7 @@ This project is designed for planning and education. It is **not** a broker-cert
 - Reg T-style comparison proxy metric
 - Export results as JSON and scenario grid as CSV
 - Seeded demo portfolio with multi-index and SPX options
+- Free delayed market data integration (Stooq CSV endpoint)
 
 ## Repository Structure
 
@@ -23,7 +24,7 @@ This project is designed for planning and education. It is **not** a broker-cert
 │  └─ web/                  # React + Vite UI
 ├─ packages/
 │  ├─ core/                 # Margin math, pricing, tests
-│  └─ market-data/          # Server-side market data/cache stubs
+│  └─ market-data/          # Server-side quote adapter + cache
 ├─ scripts/
 │  └─ install.mjs           # One-command repo installer/validator
 ├─ INSTALL.md
@@ -73,6 +74,17 @@ npm run lint
 npm run build
 ```
 
+## Free Market Data
+
+`packages/market-data` now includes a real free quote source using Stooq CSV data.
+
+- Function: `fetchSpotUsd(symbol)`
+- Caching: in-memory, 60s TTL
+- Coverage:
+  - mapped symbols for common index trackers (SPY, QQQ, DIA, IWM, EFA, EEM, EWJ, EWU, FXI, INDA)
+  - index aliases (SPX/GSPC, NDX, DJI, RUT)
+  - fallback mapping `<symbol>.us` for other US tickers
+
 ## Methodology (High-Level)
 
 For each scenario point in a configurable grid:
@@ -92,14 +104,12 @@ Outputs:
 
 - Uses Black-Scholes assumptions; American-style exercise effects are simplified
 - Real broker PM implementations may use proprietary rules and concentration add-ons not modeled here
-- Market data integration is currently a server-side stub in `packages/market-data`
+- Free data source is delayed and best-effort; production trading systems should use licensed feeds
 - This tool should not be used as the sole basis for trading or credit decisions
 
 ## Environment Variables
 
-See `.env.example`:
-
-- `QUOTE_API_KEY` for future market-data provider integration (server-side use only)
+See `.env.example` for optional vendor API keys if you later add premium providers.
 
 ## CI
 

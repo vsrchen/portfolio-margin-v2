@@ -16,7 +16,8 @@
     "noUncheckedIndexedAccess": true,
     "verbatimModuleSyntax": true,
     "paths": {
-      "@portfolio-margin/core": ["../../packages/core/src/index.ts"]
+      "@portfolio-margin/core": ["../../packages/core/src/index.ts"],
+      "@portfolio-margin/market-data": ["../../packages/market-data/src/index.ts"]
     }
   },
   "include": ["src"]

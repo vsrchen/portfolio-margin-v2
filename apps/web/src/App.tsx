@@ -5,6 +5,7 @@ import {
   type MarginRunResult,
   type ScenarioGridConfig,
 } from '@portfolio-margin/core';
+import { fetchSpotUsdMany } from '@portfolio-margin/market-data';
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { downloadText, exportCsvScenarios, exportJson } from './exportRun.js';
@@ -147,6 +148,8 @@ export default function App() {
   const [customPrice, setCustomPrice] = useState('-0.26,-0.2,-0.1,0,0.1,0.2,0.26');
   const [customVol, setCustomVol] = useState('-0.22,0,0.22');
   const [appliedGrid, setAppliedGrid] = useState<ScenarioGridConfig>(defaultScenarioGrid);
+  const [isFetchingQuotes, setIsFetchingQuotes] = useState(false);
+  const [quoteFetchMessage, setQuoteFetchMessage] = useState<string | null>(null);
   const [appliedScenarioSig, setAppliedScenarioSig] = useState(() =>
     scenarioDraftSignature('default', '-0.26,-0.2,-0.1,0,0.1,0.2,0.26', '-0.22,0,0.22'),
   );
@@ -221,6 +224,30 @@ export default function App() {
     if (!grid) return;
     setAppliedGrid(grid);
     setAppliedScenarioSig(currentScenarioSig);
+  }
+
+  async function fetchLiveQuotes() {
+    if (!previewSymbols.length) return;
+    setIsFetchingQuotes(true);
+    setQuoteFetchMessage(null);
+    try {
+      const quotes = await fetchSpotUsdMany(previewSymbols);
+      setMarketBySymbol((prev) => {
+        const next = { ...prev };
+        for (const sym of previewSymbols) {
+          const q = quotes[sym];
+          if (!q) continue;
+          next[sym] = { ...(next[sym] ?? defaultMarket()), spot: q.toFixed(2) };
+        }
+        return next;
+      });
+      setQuoteFetchMessage(`Fetched ${Object.keys(quotes).length} quote(s).`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setQuoteFetchMessage(`Quote fetch failed: ${msg}`);
+    } finally {
+      setIsFetchingQuotes(false);
+    }
   }
 
   const previewSymbols = useMemo(() => {
@@ -475,7 +502,20 @@ export default function App() {
                   onChange={(e) => setOptionMultiplier(e.target.value)}
                 />
               </label>
+              <div className="flex items-end">
+                <button
+                  type="button"
+                  className="rounded-md bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400"
+                  onClick={fetchLiveQuotes}
+                  disabled={isFetchingQuotes || previewSymbols.length === 0}
+                >
+                  {isFetchingQuotes ? 'Fetching quotes...' : 'Fetch live quotes'}
+                </button>
+              </div>
             </div>
+            {quoteFetchMessage && (
+              <p className="mt-2 text-xs text-zinc-300">{quoteFetchMessage}</p>
+            )}
 
             <p className="mt-3 text-xs text-zinc-500">
               Symbols referenced by positions:{' '}

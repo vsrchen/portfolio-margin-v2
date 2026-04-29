@@ -9,6 +9,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@portfolio-margin/core': path.resolve(__dirname, '../../packages/core/src/index.ts'),
+      '@portfolio-margin/market-data': path.resolve(
+        __dirname,
+        '../../packages/market-data/src/index.ts',
+      ),
     },
   },
 });
