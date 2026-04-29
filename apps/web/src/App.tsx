@@ -485,112 +485,114 @@ export default function App() {
           </Panel>
 
           <Panel title="Market inputs (manual)">
-            <div className="flex flex-wrap gap-4 text-sm">
-              <label className="flex flex-col gap-1">
-                <span className="text-xs text-zinc-500">As-of date</span>
-                <input
-                  className="rounded border border-zinc-700 bg-zinc-900 px-2 py-1 font-mono text-zinc-100"
-                  value={asOf}
-                  onChange={(e) => setAsOf(e.target.value)}
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-xs text-zinc-500">Option multiplier</span>
-                <input
-                  className="w-28 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-zinc-100"
-                  value={optionMultiplier}
-                  onChange={(e) => setOptionMultiplier(e.target.value)}
-                />
-              </label>
-              <div className="flex items-end">
-                <button
-                  type="button"
-                  className="rounded-md bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400"
-                  onClick={fetchLiveQuotes}
-                  disabled={isFetchingQuotes || previewSymbols.length === 0}
-                >
-                  {isFetchingQuotes ? 'Fetching quotes...' : 'Fetch live quotes'}
-                </button>
+            <div className="max-h-[520px] overflow-x-auto overflow-y-auto pr-1">
+              <div className="flex flex-wrap gap-4 text-sm">
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs text-zinc-500">As-of date</span>
+                  <input
+                    className="rounded border border-zinc-700 bg-zinc-900 px-2 py-1 font-mono text-zinc-100"
+                    value={asOf}
+                    onChange={(e) => setAsOf(e.target.value)}
+                  />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs text-zinc-500">Option multiplier</span>
+                  <input
+                    className="w-28 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-zinc-100"
+                    value={optionMultiplier}
+                    onChange={(e) => setOptionMultiplier(e.target.value)}
+                  />
+                </label>
+                <div className="flex items-end">
+                  <button
+                    type="button"
+                    className="rounded-md bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400"
+                    onClick={fetchLiveQuotes}
+                    disabled={isFetchingQuotes || previewSymbols.length === 0}
+                  >
+                    {isFetchingQuotes ? 'Fetching quotes...' : 'Fetch live quotes'}
+                  </button>
+                </div>
               </div>
-            </div>
-            {quoteFetchMessage && (
-              <p className="mt-2 text-xs text-zinc-300">{quoteFetchMessage}</p>
-            )}
+              {quoteFetchMessage && (
+                <p className="mt-2 text-xs text-zinc-300">{quoteFetchMessage}</p>
+              )}
 
-            <p className="mt-3 text-xs text-zinc-500">
-              Symbols referenced by positions:{' '}
-              <span className="font-mono text-zinc-300">{previewSymbols.join(', ') || '—'}</span>
-            </p>
+              <p className="mt-3 text-xs text-zinc-500">
+                Symbols referenced by positions:{' '}
+                <span className="font-mono text-zinc-300">{previewSymbols.join(', ') || '—'}</span>
+              </p>
 
-            <div className="mt-4 overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-900/40">
-              <table className="w-full min-w-[720px] border-collapse text-left text-xs">
-                <thead className="border-b border-zinc-800 text-[11px] uppercase tracking-wide text-zinc-500">
-                  <tr>
-                    <th className="sticky left-0 top-0 z-20 bg-zinc-900 px-3 py-2 font-semibold">Symbol</th>
-                    <th className="sticky top-0 z-10 bg-zinc-900 px-3 py-2 font-semibold">Spot</th>
-                    <th className="sticky top-0 z-10 bg-zinc-900 px-3 py-2 font-semibold">Rate</th>
-                    <th className="sticky top-0 z-10 bg-zinc-900 px-3 py-2 font-semibold">Div yield</th>
-                    <th className="sticky top-0 z-10 bg-zinc-900 px-3 py-2 font-semibold">Baseline IV</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-800">
-                  {previewSymbols.map((sym) => (
-                    <tr key={sym}>
-                      <td className="sticky left-0 z-10 bg-zinc-900 px-3 py-2 font-mono text-sm font-semibold text-emerald-400">
-                        {sym}
-                      </td>
-                      <td className="px-3 py-2">
-                        <input
-                          className="w-24 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 font-mono text-zinc-100"
-                          value={marketBySymbol[sym]?.spot ?? ''}
-                          onChange={(e) =>
-                            setMarketBySymbol((m) => ({
-                              ...m,
-                              [sym]: { ...(m[sym] ?? defaultMarket()), spot: e.target.value },
-                            }))
-                          }
-                        />
-                      </td>
-                      <td className="px-3 py-2">
-                        <input
-                          className="w-24 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 font-mono text-zinc-100"
-                          value={marketBySymbol[sym]?.rate ?? ''}
-                          onChange={(e) =>
-                            setMarketBySymbol((m) => ({
-                              ...m,
-                              [sym]: { ...(m[sym] ?? defaultMarket()), rate: e.target.value },
-                            }))
-                          }
-                        />
-                      </td>
-                      <td className="px-3 py-2">
-                        <input
-                          className="w-24 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 font-mono text-zinc-100"
-                          value={marketBySymbol[sym]?.divYield ?? ''}
-                          onChange={(e) =>
-                            setMarketBySymbol((m) => ({
-                              ...m,
-                              [sym]: { ...(m[sym] ?? defaultMarket()), divYield: e.target.value },
-                            }))
-                          }
-                        />
-                      </td>
-                      <td className="px-3 py-2">
-                        <input
-                          className="w-24 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 font-mono text-zinc-100"
-                          value={marketBySymbol[sym]?.baselineIv ?? ''}
-                          onChange={(e) =>
-                            setMarketBySymbol((m) => ({
-                              ...m,
-                              [sym]: { ...(m[sym] ?? defaultMarket()), baselineIv: e.target.value },
-                            }))
-                          }
-                        />
-                      </td>
+              <div className="mt-4 overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-900/40">
+                <table className="w-full min-w-[720px] border-collapse text-left text-xs">
+                  <thead className="border-b border-zinc-800 text-[11px] uppercase tracking-wide text-zinc-500">
+                    <tr>
+                      <th className="sticky left-0 top-0 z-20 bg-zinc-900 px-3 py-2 font-semibold">Symbol</th>
+                      <th className="sticky top-0 z-10 bg-zinc-900 px-3 py-2 font-semibold">Spot</th>
+                      <th className="sticky top-0 z-10 bg-zinc-900 px-3 py-2 font-semibold">Rate</th>
+                      <th className="sticky top-0 z-10 bg-zinc-900 px-3 py-2 font-semibold">Div yield</th>
+                      <th className="sticky top-0 z-10 bg-zinc-900 px-3 py-2 font-semibold">Baseline IV</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-800">
+                    {previewSymbols.map((sym) => (
+                      <tr key={sym}>
+                        <td className="sticky left-0 z-10 bg-zinc-900 px-3 py-2 font-mono text-sm font-semibold text-emerald-400">
+                          {sym}
+                        </td>
+                        <td className="px-3 py-2">
+                          <input
+                            className="w-24 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 font-mono text-zinc-100"
+                            value={marketBySymbol[sym]?.spot ?? ''}
+                            onChange={(e) =>
+                              setMarketBySymbol((m) => ({
+                                ...m,
+                                [sym]: { ...(m[sym] ?? defaultMarket()), spot: e.target.value },
+                              }))
+                            }
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <input
+                            className="w-24 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 font-mono text-zinc-100"
+                            value={marketBySymbol[sym]?.rate ?? ''}
+                            onChange={(e) =>
+                              setMarketBySymbol((m) => ({
+                                ...m,
+                                [sym]: { ...(m[sym] ?? defaultMarket()), rate: e.target.value },
+                              }))
+                            }
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <input
+                            className="w-24 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 font-mono text-zinc-100"
+                            value={marketBySymbol[sym]?.divYield ?? ''}
+                            onChange={(e) =>
+                              setMarketBySymbol((m) => ({
+                                ...m,
+                                [sym]: { ...(m[sym] ?? defaultMarket()), divYield: e.target.value },
+                              }))
+                            }
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <input
+                            className="w-24 rounded border border-zinc-700 bg-zinc-900 px-2 py-1 font-mono text-zinc-100"
+                            value={marketBySymbol[sym]?.baselineIv ?? ''}
+                            onChange={(e) =>
+                              setMarketBySymbol((m) => ({
+                                ...m,
+                                [sym]: { ...(m[sym] ?? defaultMarket()), baselineIv: e.target.value },
+                              }))
+                            }
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </Panel>
 
