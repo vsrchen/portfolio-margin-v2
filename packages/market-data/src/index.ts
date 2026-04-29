@@ -32,6 +32,8 @@ export function setCachedQuote(symbol: string, spot: number): CachedQuote {
 }
 
 const STOOQ_URL = 'https://stooq.com/q/l/';
+const YAHOO_QUOTE_URL = 'https://query1.finance.yahoo.com/v7/finance/quote';
+const ALLORIGINS_RAW_URL = 'https://api.allorigins.win/raw';
 
 function toKey(symbol: string): string {
   return symbol.trim().toUpperCase();
@@ -103,6 +105,83 @@ async function fetchStooqSpotUsd(symbol: string): Promise<number> {
   return parseStooqClose(text);
 }
 
+async function fetchViaAllOriginsRaw(url: string, accept: string): Promise<string> {
+  const proxied = new URL(ALLORIGINS_RAW_URL);
+  proxied.searchParams.set('url', url);
+  const res = await fetch(proxied, {
+    method: 'GET',
+    headers: {
+      Accept: accept,
+    },
+  });
+  if (!res.ok) {
+    throw new Error(`Proxy request failed (${res.status})`);
+  }
+  return await res.text();
+}
+
+async function fetchStooqSpotUsdViaProxy(symbol: string): Promise<number> {
+  const stooqSymbol = stooqSymbolFor(symbol);
+  const url = new URL(STOOQ_URL);
+  url.searchParams.set('s', stooqSymbol);
+  url.searchParams.set('f', 'sd2t2ohlcv');
+  url.searchParams.set('h', '');
+  url.searchParams.set('e', 'csv');
+  const text = await fetchViaAllOriginsRaw(url.toString(), 'text/csv');
+  return parseStooqClose(text);
+}
+
+function yahooSymbolFor(symbol: string): string {
+  const s = toKey(symbol);
+  const map: Record<string, string> = {
+    SPX: '^GSPC',
+    GSPC: '^GSPC',
+    NDX: '^NDX',
+    DJI: '^DJI',
+    RUT: '^RUT',
+  };
+  return map[s] ?? s;
+}
+
+async function fetchYahooSpotUsd(symbol: string): Promise<number> {
+  const yahooSymbol = yahooSymbolFor(symbol);
+  const url = new URL(YAHOO_QUOTE_URL);
+  url.searchParams.set('symbols', yahooSymbol);
+
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+  });
+  if (!res.ok) {
+    throw new Error(`Provider request failed (${res.status})`);
+  }
+  const json = (await res.json()) as {
+    quoteResponse?: { result?: Array<{ regularMarketPrice?: number }> };
+  };
+  const px = json.quoteResponse?.result?.[0]?.regularMarketPrice;
+  if (!Number.isFinite(px) || (px ?? 0) <= 0) {
+    throw new Error('Quote unavailable from provider.');
+  }
+  return Number(px);
+}
+
+async function fetchYahooSpotUsdViaProxy(symbol: string): Promise<number> {
+  const yahooSymbol = yahooSymbolFor(symbol);
+  const url = new URL(YAHOO_QUOTE_URL);
+  url.searchParams.set('symbols', yahooSymbol);
+  const raw = await fetchViaAllOriginsRaw(url.toString(), 'application/json');
+  const json = JSON.parse(raw) as {
+    quoteResponse?: { result?: Array<{ regularMarketPrice?: number }> };
+  };
+  const px = json.quoteResponse?.result?.[0]?.regularMarketPrice;
+  if (!Number.isFinite(px) || (px ?? 0) <= 0) {
+    throw new Error('Quote unavailable from provider.');
+  }
+  return Number(px);
+}
+
 /**
  * Fetch delayed end-of-day style spot from Stooq (free public endpoint).
  */
@@ -111,7 +190,41 @@ export async function fetchSpotUsd(symbol: string): Promise<number> {
   const cached = getCachedQuote(key);
   if (cached) return cached.spot;
 
-  const spot = await fetchStooqSpotUsd(key);
+  let spot: number | null = null;
+  const errors: string[] = [];
+  try {
+    spot = await fetchStooqSpotUsd(key);
+  } catch (e) {
+    errors.push(`stooq: ${e instanceof Error ? e.message : String(e)}`);
+  }
+  if (spot === null) {
+    try {
+      spot = await fetchStooqSpotUsdViaProxy(key);
+    } catch (e) {
+      errors.push(`stooq-proxy: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  if (spot === null) {
+    try {
+      spot = await fetchYahooSpotUsd(key);
+    } catch (e) {
+      errors.push(`yahoo: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  if (spot === null) {
+    try {
+      spot = await fetchYahooSpotUsdViaProxy(key);
+    } catch (e) {
+      errors.push(`yahoo-proxy: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  if (spot === null) {
+    throw new Error(
+      `Failed to fetch quote for ${key}. Providers failed (${errors.join(' | ')}). ` +
+        'If this is in-browser, your network/CORS policy may block these endpoints.',
+    );
+  }
+
   setCachedQuote(key, spot);
   return spot;
 }
