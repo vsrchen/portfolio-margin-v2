@@ -60,6 +60,14 @@ function useScenarioGrid(
   }, [preset, customPrice, customVol]);
 }
 
+function scenarioDraftSignature(
+  preset: 'conservative' | 'default' | 'custom',
+  customPrice: string,
+  customVol: string,
+): string {
+  return `${preset}|${customPrice.trim()}|${customVol.trim()}`;
+}
+
 const demoLegs: LegRow[] = [
   { id: '1', kind: 'stock', underlying: 'SPY', qty: '100' },
   { id: '3', kind: 'stock', underlying: 'QQQ', qty: '75' },
@@ -138,8 +146,17 @@ export default function App() {
   const [preset, setPreset] = useState<'conservative' | 'default' | 'custom'>('default');
   const [customPrice, setCustomPrice] = useState('-0.26,-0.2,-0.1,0,0.1,0.2,0.26');
   const [customVol, setCustomVol] = useState('-0.22,0,0.22');
+  const [appliedGrid, setAppliedGrid] = useState<ScenarioGridConfig>(defaultScenarioGrid);
+  const [appliedScenarioSig, setAppliedScenarioSig] = useState(() =>
+    scenarioDraftSignature('default', '-0.26,-0.2,-0.1,0,0.1,0.2,0.26', '-0.22,0,0.22'),
+  );
 
   const { grid, error: gridError } = useScenarioGrid(preset, customPrice, customVol);
+  const currentScenarioSig = useMemo(
+    () => scenarioDraftSignature(preset, customPrice, customVol),
+    [preset, customPrice, customVol],
+  );
+  const hasPendingScenarioChanges = currentScenarioSig !== appliedScenarioSig;
 
   const runState = useMemo(() => {
     const parsedLegs = parseLegRows(rows);
@@ -151,20 +168,17 @@ export default function App() {
     if (snap.errors.length) {
       return { ok: false as const, message: snap.errors.join(' ') };
     }
-    if (!grid) {
-      return { ok: false as const, message: gridError ?? 'Invalid scenario grid.' };
-    }
     if (!snap.snapshot) {
       return { ok: false as const, message: 'Missing market snapshot.' };
     }
     try {
-      const result = computeMarginRun(parsedLegs.legs, snap.snapshot, asOf, grid);
-      return { ok: true as const, result, legs: parsedLegs.legs, grid };
+      const result = computeMarginRun(parsedLegs.legs, snap.snapshot, asOf, appliedGrid);
+      return { ok: true as const, result, legs: parsedLegs.legs, grid: appliedGrid };
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       return { ok: false as const, message: msg };
     }
-  }, [rows, marketBySymbol, optionMultiplier, grid, gridError, asOf]);
+  }, [rows, marketBySymbol, optionMultiplier, appliedGrid, asOf]);
 
   function upsertMarketForSymbols(symbols: string[]) {
     setMarketBySymbol((prev) => {
@@ -201,6 +215,12 @@ export default function App() {
 
   function removeRow(id: string) {
     setRows((r) => r.filter((x) => x.id !== id));
+  }
+
+  function applyScenarioChanges() {
+    if (!grid) return;
+    setAppliedGrid(grid);
+    setAppliedScenarioSig(currentScenarioSig);
   }
 
   const previewSymbols = useMemo(() => {
@@ -514,7 +534,7 @@ export default function App() {
           </Panel>
 
           <Panel title="Scenario grid">
-            <div className="flex flex-wrap gap-3 text-sm">
+            <div className="flex flex-wrap items-center gap-3 text-sm">
               <label className="flex items-center gap-2">
                 <input
                   type="radio"
@@ -539,6 +559,14 @@ export default function App() {
                 />
                 Custom
               </label>
+              <button
+                type="button"
+                className="rounded-md bg-indigo-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-600 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400"
+                onClick={applyScenarioChanges}
+                disabled={!hasPendingScenarioChanges || !grid}
+              >
+                Re-run scenarios
+              </button>
             </div>
             {preset === 'custom' && (
               <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -562,6 +590,12 @@ export default function App() {
             )}
             {gridError && preset === 'custom' && (
               <p className="mt-2 text-sm text-amber-400">{gridError}</p>
+            )}
+            {hasPendingScenarioChanges && !gridError && (
+              <p className="mt-2 text-xs text-indigo-300">
+                Scenario edits are pending. Click <span className="font-semibold">Re-run scenarios</span>{' '}
+                to update results.
+              </p>
             )}
           </Panel>
 
