@@ -5,3 +5,6 @@ dist
 .env
 .env.*
 !.env.example
+
+# Cursor / IDE workflow plan copies (not part of CI)
+.github/workflows/*.plan.md
