@@ -137,7 +137,31 @@ const demoLegs: LegRow[] = [
   },
 ];
 
+const INTRO_BLURB_STORAGE_KEY = 'portfolio-margin.intro-blurb';
+
+const DEFAULT_INTRO_BLURB =
+  'Scenario-based estimate for US equities and listed options using Black–Scholes marks and a configurable spot/vol shock grid. Outputs are simulations for planning and education—not a broker margin determination.';
+
+function readStoredIntroBlurb(): string {
+  if (typeof window === 'undefined') return DEFAULT_INTRO_BLURB;
+  try {
+    const s = localStorage.getItem(INTRO_BLURB_STORAGE_KEY);
+    return s !== null ? s : DEFAULT_INTRO_BLURB;
+  } catch {
+    return DEFAULT_INTRO_BLURB;
+  }
+}
+
+function storeIntroBlurb(value: string): void {
+  try {
+    localStorage.setItem(INTRO_BLURB_STORAGE_KEY, value);
+  } catch {
+    /* quota / private mode */
+  }
+}
+
 export default function App() {
+  const [introBlurb, setIntroBlurb] = useState(readStoredIntroBlurb);
   const [asOf, setAsOf] = useState('2025-06-01');
   const [rows, setRows] = useState<LegRow[]>(demoLegs);
   const [marketBySymbol, setMarketBySymbol] = useState<Record<string, MarketRow>>({
@@ -273,11 +297,32 @@ export default function App() {
           <h1 className="text-2xl font-semibold tracking-tight text-white">
             Portfolio margin simulator
           </h1>
-          <p className="max-w-3xl text-sm leading-relaxed text-zinc-400">
-            Scenario-based estimate for US equities and listed options using Black–Scholes marks and a
-            configurable spot/vol shock grid. Outputs are simulations for planning and education—not a
-            broker margin determination.
-          </p>
+          <div className="max-w-3xl space-y-1.5">
+            <textarea
+              id="intro-blurb"
+              name="intro-blurb"
+              className="min-h-[4.5rem] w-full resize-y rounded-md border border-transparent bg-transparent px-0 py-0 text-sm leading-relaxed text-zinc-400 outline-none transition-[padding,background-color,border-color,box-shadow] placeholder:text-zinc-600 focus:border-zinc-700 focus:bg-zinc-950/50 focus:px-2 focus:py-1.5 focus:ring-1 focus:ring-zinc-600"
+              value={introBlurb}
+              onChange={(e) => setIntroBlurb(e.target.value)}
+              onBlur={() => storeIntroBlurb(introBlurb)}
+              spellCheck
+              title="Edits are saved in this browser when you leave the field."
+              aria-label="Introduction (editable, stored locally)"
+            />
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
+              <span>Stored in this browser only.</span>
+              <button
+                type="button"
+                className="text-emerald-500/90 underline-offset-2 hover:text-emerald-400 hover:underline"
+                onClick={() => {
+                  setIntroBlurb(DEFAULT_INTRO_BLURB);
+                  storeIntroBlurb(DEFAULT_INTRO_BLURB);
+                }}
+              >
+                Reset to default
+              </button>
+            </div>
+          </div>
         </div>
       </header>
 
