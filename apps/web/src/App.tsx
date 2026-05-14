@@ -292,7 +292,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-zinc-800 bg-zinc-900/60 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-zinc-800 bg-zinc-950/90 shadow-sm shadow-black/20 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-6">
           <h1 className="text-2xl font-semibold tracking-tight text-white">
             Portfolio margin simulator
