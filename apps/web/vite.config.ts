@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  base: process.env['GITHUB_ACTIONS'] ? '/portfolio-margin/' : '/',
+  base: process.env['GITHUB_ACTIONS'] ? '/portfolio-margin-v2/' : '/',
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
