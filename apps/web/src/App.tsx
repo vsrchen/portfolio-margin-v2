@@ -336,7 +336,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="mx-auto grid max-w-6xl gap-8 px-4 py-8 lg:grid-cols-[1fr_320px]">
+      <main className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-8">
         <section className="flex flex-col gap-8">
           <Panel title="Portfolio">
             <div className="flex flex-wrap gap-2">
