@@ -1,9 +1,13 @@
 import {
   computeMarginRun,
+  computePositionAttributionsForScenario,
   conservativeScenarioGrid,
   defaultScenarioGrid,
   type MarginRunResult,
+  type MarketSnapshot,
+  type PositionLeg,
   type ScenarioGridConfig,
+  type ScenarioResult,
 } from '@portfolio-margin/core';
 import { fetchSpotUsdMany } from '@portfolio-margin/market-data';
 import { useEffect, useMemo, useState } from 'react';
@@ -200,7 +204,13 @@ export default function App() {
     }
     try {
       const result = computeMarginRun(parsedLegs.legs, snap.snapshot, asOf, appliedGrid);
-      return { ok: true as const, result, legs: parsedLegs.legs, grid: appliedGrid };
+      return {
+        ok: true as const,
+        result,
+        legs: parsedLegs.legs,
+        grid: appliedGrid,
+        market: snap.snapshot,
+      };
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       return { ok: false as const, message: msg };
@@ -739,6 +749,9 @@ export default function App() {
             {runState.ok && (
               <ResultsCard
                 result={runState.result}
+                legs={runState.legs}
+                market={runState.market}
+                asOf={asOf}
                 onExportJson={() =>
                   downloadText(
                     'margin-run.json',
@@ -818,16 +831,65 @@ function Field({
   );
 }
 
+function scenarioOptionKey(priceShock: number, volShock: number): string {
+  return `${priceShock}:${volShock}`;
+}
+
+function formatScenarioOptionLabel(s: ScenarioResult, isWorst: boolean): string {
+  const shocks = `ΔS ${s.priceShock >= 0 ? '+' : ''}${s.priceShock.toFixed(3)} · Δσ ${s.volShock >= 0 ? '+' : ''}${s.volShock.toFixed(3)}`;
+  const pnl = fmtUsd(s.pnl);
+  return isWorst ? `${shocks} · ${pnl} (worst)` : `${shocks} · ${pnl}`;
+}
+
 function ResultsCard({
   result,
+  legs,
+  market,
+  asOf,
   onExportJson,
   onExportCsv,
 }: {
   result: MarginRunResult;
+  legs: PositionLeg[];
+  market: MarketSnapshot;
+  asOf: string;
   onExportJson: () => void;
   onExportCsv: () => void;
 }) {
-  const worst = result.scenarios.reduce((a, b) => (a.pnl < b.pnl ? a : b));
+  const { worstScenario } = result;
+  const worstKey = scenarioOptionKey(worstScenario.priceShock, worstScenario.volShock);
+  const [selectedScenarioKey, setSelectedScenarioKey] = useState(worstKey);
+
+  useEffect(() => {
+    setSelectedScenarioKey(worstKey);
+  }, [worstKey]);
+
+  const scenariosByStress = useMemo(
+    () => [...result.scenarios].sort((a, b) => a.pnl - b.pnl),
+    [result.scenarios],
+  );
+
+  const selectedScenario = useMemo(() => {
+    const found = result.scenarios.find(
+      (s) => scenarioOptionKey(s.priceShock, s.volShock) === selectedScenarioKey,
+    );
+    return found ?? result.scenarios.find((s) => scenarioOptionKey(s.priceShock, s.volShock) === worstKey)!;
+  }, [result.scenarios, selectedScenarioKey, worstKey]);
+
+  const selectedScenarioMargin = Math.max(0, -selectedScenario.pnl);
+
+  const positionAttributions = useMemo(
+    () =>
+      computePositionAttributionsForScenario(
+        legs,
+        market,
+        asOf,
+        selectedScenario,
+        selectedScenarioMargin,
+      ),
+    [legs, market, asOf, selectedScenario, selectedScenarioMargin],
+  );
+
   return (
     <div className="flex flex-col gap-4 text-sm">
       <div className="grid grid-cols-2 gap-3">
@@ -840,9 +902,91 @@ function ResultsCard({
       <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-3 text-xs text-zinc-400">
         <div className="font-semibold text-zinc-300">Worst scenario</div>
         <div className="mt-1 font-mono">
-          price shock {worst.priceShock.toFixed(4)}, vol shock {worst.volShock.toFixed(4)}
+          price shock {worstScenario.priceShock.toFixed(4)}, vol shock{' '}
+          {worstScenario.volShock.toFixed(4)}
         </div>
       </div>
+
+      {positionAttributions.length > 0 && (
+        <div>
+          <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div className="text-xs font-semibold text-zinc-300">By position</div>
+            <label className="flex min-w-0 flex-col gap-1 text-xs">
+              <span className="text-zinc-500">Scenario</span>
+              <select
+                className="max-w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1 font-mono text-zinc-100"
+                value={selectedScenarioKey}
+                onChange={(e) => setSelectedScenarioKey(e.target.value)}
+              >
+                {scenariosByStress.map((s) => {
+                  const key = scenarioOptionKey(s.priceShock, s.volShock);
+                  const isWorst = key === worstKey;
+                  return (
+                    <option key={key} value={key}>
+                      {formatScenarioOptionLabel(s, isWorst)}
+                    </option>
+                  );
+                })}
+              </select>
+            </label>
+          </div>
+          <p className="mb-2 text-xs leading-relaxed text-zinc-500">
+            PnL and scenario margin for the selected shock; margin is split across losing legs in
+            proportion to each leg&apos;s loss. Reg T is the per-leg proxy rule sum (unchanged by
+            scenario).
+          </p>
+          <div className="max-h-64 overflow-auto rounded-lg border border-zinc-800">
+            <table className="w-full min-w-[28rem] text-left text-xs">
+              <thead className="sticky top-0 bg-zinc-900/95 text-zinc-500">
+                <tr>
+                  <th className="px-2 py-1.5 font-medium">Position</th>
+                  <th className="px-2 py-1.5 text-right font-medium">PnL</th>
+                  <th className="px-2 py-1.5 text-right font-medium">Scen. margin</th>
+                  <th className="px-2 py-1.5 text-right font-medium">Reg T</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-800/80 font-mono text-zinc-300">
+                {positionAttributions.map((row) => (
+                  <tr key={row.legIndex} className="hover:bg-zinc-900/40">
+                    <td className="max-w-[10rem] truncate px-2 py-1.5 font-sans text-zinc-200">
+                      {row.label}
+                    </td>
+                    <td
+                      className={`px-2 py-1.5 text-right tabular-nums ${
+                        row.pnlAtScenario < 0 ? 'text-red-400' : 'text-zinc-400'
+                      }`}
+                    >
+                      {fmtUsd(row.pnlAtScenario)}
+                    </td>
+                    <td className="px-2 py-1.5 text-right tabular-nums text-amber-300/90">
+                      {row.scenarioMarginAttribution > 0
+                        ? fmtUsd(row.scenarioMarginAttribution)
+                        : '—'}
+                    </td>
+                    <td className="px-2 py-1.5 text-right tabular-nums">
+                      {row.regTInitialRequirement > 0 ? fmtUsd(row.regTInitialRequirement) : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="border-t border-zinc-700 bg-zinc-900/60 text-zinc-400">
+                <tr>
+                  <td className="px-2 py-1.5 font-sans font-medium text-zinc-300">Total</td>
+                  <td className="px-2 py-1.5 text-right tabular-nums">
+                    {fmtUsd(selectedScenario.pnl)}
+                  </td>
+                  <td className="px-2 py-1.5 text-right tabular-nums text-amber-300/90">
+                    {fmtUsd(selectedScenarioMargin)}
+                  </td>
+                  <td className="px-2 py-1.5 text-right tabular-nums">
+                    {fmtUsd(result.regTInitialRequirement)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2">
         <button

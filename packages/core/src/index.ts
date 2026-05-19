@@ -6,3 +6,4 @@ export * from './optionSymbol.js';
 export * from './valuation.js';
 export * from './margin.js';
 export * from './regT.js';
+export * from './positionLabel.js';

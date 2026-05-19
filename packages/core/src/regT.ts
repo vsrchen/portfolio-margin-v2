@@ -25,30 +25,34 @@ function normalizeSym(s: string): string {
  * Implemented: REG_T_SIMPLE from plan "comparison only":
  * Sum over legs: stocks -> 0.25 * abs(qty * spot); options short -> 0.20 * spot * abs(qty) * multiplier (very rough).
  */
+/** Reg T proxy contribution for a single leg (same rules as portfolio total). */
+export function regTRequirementForLeg(
+  leg: PositionLeg,
+  market: MarketSnapshot,
+  asOf: string,
+): number {
+  const sym = normalizeSym(leg.underlying);
+  const S = market.underlyings[sym]!.spot;
+
+  if (leg.kind === 'stock') {
+    return 0.25 * Math.abs(leg.qty * S);
+  }
+
+  const mv = Math.abs(legValue(leg, market, asOf, { [sym]: S }, baseVolResolver(market)));
+  if (leg.qty < 0) {
+    return Math.max(0.1 * S * market.optionMultiplier * Math.abs(leg.qty), 0.25 * mv);
+  }
+  return 0;
+}
+
 export function regTInitialRequirementProxy(
   legs: PositionLeg[],
   market: MarketSnapshot,
   asOf: string,
 ): number {
-  const spotOf = (sym: string) => market.underlyings[normalizeSym(sym)]!.spot;
   let req = 0;
-
   for (const leg of legs) {
-    const sym = normalizeSym(leg.underlying);
-    const S = spotOf(sym);
-
-    if (leg.kind === 'stock') {
-      req += 0.25 * Math.abs(leg.qty * S);
-      continue;
-    }
-
-    const mv = Math.abs(
-      legValue(leg, market, asOf, { [sym]: S }, baseVolResolver(market)),
-    );
-    if (leg.qty < 0) {
-      req += Math.max(0.1 * S * market.optionMultiplier * Math.abs(leg.qty), 0.25 * mv);
-    }
+    req += regTRequirementForLeg(leg, market, asOf);
   }
-
   return req;
 }

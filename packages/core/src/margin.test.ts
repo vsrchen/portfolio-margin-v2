@@ -48,5 +48,32 @@ describe('computeMarginRun', () => {
     expect(r.worstPnl).toBeLessThan(0);
     const worst = r.scenarios.reduce((a, b) => (a.pnl < b.pnl ? a : b));
     expect(worst.pnl).toBe(r.worstPnl);
+    expect(r.worstScenario.priceShock).toBe(worst.priceShock);
+    expect(r.worstScenario.volShock).toBe(worst.volShock);
+  });
+
+  it('position attributions sum to portfolio margin and Reg T totals', () => {
+    const legs: PositionLeg[] = [
+      { kind: 'stock', underlying: 'SPY', qty: 100 },
+      {
+        kind: 'option',
+        underlying: 'SPY',
+        strike: 400,
+        expiry: '2025-12-19',
+        right: 'C',
+        qty: 2,
+      },
+    ];
+    const market = marketSpy(400, 0.22);
+    const r = computeMarginRun(legs, market, '2025-06-01', defaultScenarioGrid);
+    const regTSum = r.positionAttributions.reduce((a, p) => a + p.regTInitialRequirement, 0);
+    const marginSum = r.positionAttributions.reduce((a, p) => a + p.scenarioMarginAttribution, 0);
+    const pnlSum = r.positionAttributions.reduce((a, p) => a + p.pnlAtScenario, 0);
+
+    expect(regTSum).toBeCloseTo(r.regTInitialRequirement, 8);
+    expect(pnlSum).toBeCloseTo(r.worstPnl, 6);
+    if (r.scenarioMargin > 0) {
+      expect(marginSum).toBeCloseTo(r.scenarioMargin, 6);
+    }
   });
 });

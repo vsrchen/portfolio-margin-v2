@@ -62,6 +62,21 @@ export type ScenarioResult = ScenarioPoint & {
   portfolioValue: number;
 };
 
+export type PositionAttribution = {
+  legIndex: number;
+  label: string;
+  baseValue: number;
+  /** PnL vs base at the selected scenario */
+  pnlAtScenario: number;
+  /**
+   * Share of scenario margin allocated by proportional loss at the selected scenario
+   * (sums to max(0, −portfolioPnl) when portfolio PnL < 0).
+   */
+  scenarioMarginAttribution: number;
+  /** Per-leg Reg T proxy (sums to regTInitialRequirement) */
+  regTInitialRequirement: number;
+};
+
 export type MarginRunResult = {
   basePortfolioValue: number;
   scenarios: ScenarioResult[];
@@ -71,4 +86,6 @@ export type MarginRunResult = {
   scenarioMargin: number;
   /** Simple Reg T style comparison (not PM) */
   regTInitialRequirement: number;
+  worstScenario: ScenarioPoint;
+  positionAttributions: PositionAttribution[];
 };

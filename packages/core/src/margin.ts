@@ -1,7 +1,9 @@
-import { regTInitialRequirementProxy } from './regT.js';
+import { formatPositionLegLabel } from './positionLabel.js';
+import { regTInitialRequirementProxy, regTRequirementForLeg } from './regT.js';
 import type {
   MarginRunResult,
   MarketSnapshot,
+  PositionAttribution,
   PositionLeg,
   ScenarioGridConfig,
   ScenarioResult,
@@ -10,6 +12,7 @@ import {
   assertMarket,
   baseVolResolver,
   ivForOption,
+  legValue,
   portfolioValue,
   scenarioSpotMap,
   scenarioVolResolver,
@@ -64,12 +67,25 @@ export function computeMarginRun(
   }
 
   let worstPnl = scenarios.length ? scenarios[0]!.pnl : 0;
+  let worstScenario = scenarios.length
+    ? { priceShock: scenarios[0]!.priceShock, volShock: scenarios[0]!.volShock }
+    : { priceShock: 0, volShock: 0 };
   for (const s of scenarios) {
-    if (s.pnl < worstPnl) worstPnl = s.pnl;
+    if (s.pnl < worstPnl) {
+      worstPnl = s.pnl;
+      worstScenario = { priceShock: s.priceShock, volShock: s.volShock };
+    }
   }
 
   const scenarioMargin = Math.max(0, -worstPnl);
   const regTInitialRequirement = regTInitialRequirementProxy(legs, market, asOf);
+  const positionAttributions = computePositionAttributionsForScenario(
+    legs,
+    market,
+    asOf,
+    worstScenario,
+    scenarioMargin,
+  );
 
   return {
     basePortfolioValue,
@@ -77,7 +93,59 @@ export function computeMarginRun(
     worstPnl,
     scenarioMargin,
     regTInitialRequirement,
+    worstScenario,
+    positionAttributions,
   };
+}
+
+/** Per-leg PnL and margin attribution at a specific spot/vol shock. */
+export function computePositionAttributionsForScenario(
+  legs: PositionLeg[],
+  market: MarketSnapshot,
+  asOf: string,
+  scenario: { priceShock: number; volShock: number },
+  scenarioMargin: number,
+): PositionAttribution[] {
+  const baseSpot = baseSpotMap(legs, market);
+  const baseVol = baseVolResolver(market);
+  const scenarioSpots = scenarioSpotMap(market, legs, scenario.priceShock);
+  const scenarioVol = scenarioVolResolver(scenario.volShock, (sym, leg) =>
+    ivForOption(market.underlyings[sym]!, leg),
+  );
+
+  const rows: PositionAttribution[] = [];
+  let totalLoss = 0;
+
+  for (let i = 0; i < legs.length; i++) {
+    const leg = legs[i]!;
+    const baseValue = legValue(leg, market, asOf, baseSpot, baseVol);
+    const scenarioValue = legValue(leg, market, asOf, scenarioSpots, scenarioVol);
+    const pnlAtScenario = scenarioValue - baseValue;
+    const regT = regTRequirementForLeg(leg, market, asOf);
+
+    if (pnlAtScenario < 0) {
+      totalLoss += -pnlAtScenario;
+    }
+
+    rows.push({
+      legIndex: i,
+      label: formatPositionLegLabel(leg),
+      baseValue,
+      pnlAtScenario,
+      scenarioMarginAttribution: 0,
+      regTInitialRequirement: regT,
+    });
+  }
+
+  if (scenarioMargin > 0 && totalLoss > 0) {
+    for (const row of rows) {
+      if (row.pnlAtScenario < 0) {
+        row.scenarioMarginAttribution = (scenarioMargin * -row.pnlAtScenario) / totalLoss;
+      }
+    }
+  }
+
+  return rows;
 }
 
 /** Default PM-like grid (example magnitudes; configurable in UI). */
