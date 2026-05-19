@@ -4,6 +4,12 @@ Scenario-based portfolio margin **estimator** for US equities and listed options
 
 This project is designed for planning and education. It is **not** a broker-certified or regulatory-grade margin engine.
 
+## Live demo
+
+**https://vsrchen.github.io/portfolio-margin-v2/**
+
+GitHub Pages must deploy the **`gh-pages` branch** (root), not `main`. The deploy workflow builds the Vite app and pushes `apps/web/dist` to `gh-pages` on each push to `main`.
+
 ## Features
 
 - Portfolio editor for stock and option positions
